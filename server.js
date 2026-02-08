@@ -12,7 +12,7 @@ app.use(express.static(path.join(__dirname))); // sirve index.html, usuario.html
 // DB (se crea si no existe)
 const db = new sqlite3.Database("./app.db");
 
-// Crear tabla si no existe
+// Crear tabla si no existe     es una prueba
 db.serialize(() => {
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
