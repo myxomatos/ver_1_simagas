@@ -37,25 +37,51 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // ===== Cargar usuarios (usuario.html) =====
+  // ===== Cargar Usuarios (usuario.html) =====
   const loadUsersBtn = document.getElementById("loadUsersBtn");
   if (loadUsersBtn) {
     loadUsersBtn.addEventListener("click", loadUsers);
   }
 
   async function loadUsers() {
-    const list = document.getElementById("usersList");
+    const list = document.getElementById("UsersList");
     if (!list) return;
 
     list.innerHTML = "<li>Cargando...</li>";
 
     const res = await fetch("/api/users");
     const users = await res.json();
-
+  
+    users.sort((a, b) => a.name.localeCompare(b.name));
     list.innerHTML = "";
     users.forEach((u) => {
       const li = document.createElement("li");
-      li.textContent = `#${u.id} - ${u.name} (${u.created_at})`;
+      li.textContent = `${u.id} - ${u.name} - (${u.created_at})`;
+      list.appendChild(li);
+    });
+  }
+
+
+// ===== Cargar Clientes (cliente.html) =====
+  const loadCtesBtn = document.getElementById("loadCtesBtn");
+  if (loadCtesBtn) {
+    loadCtesBtn.addEventListener("click", loadCtes);
+  }
+
+  async function loadCtes() {
+    const list = document.getElementById("CtesList");
+    if (!list) return;
+
+    list.innerHTML = "<li>Cargando...</li>";
+
+    const res = await fetch("/api/vencli");
+    const ctes = await res.json();
+  
+    // ctes.sort((a, b) => a.cli_nombre.localeCompare(b.cli_nombre));
+    list.innerHTML = "";
+    ctes.forEach((i) => {
+      const li = document.createElement("li");
+      li.textContent = `${i.cli_llave} - ${i.cli_nombre} - ${i.cli_calle} - ${i.cli_colonia} - ${i.cli_cp} - ${i.cli_pais} - ${i.cli_rfc}`;
       list.appendChild(li);
     });
   }
