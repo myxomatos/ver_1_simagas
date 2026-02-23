@@ -21,21 +21,6 @@ db.serialize(() => {
       created_at TEXT NOT NULL
     );
 
-    CREATE TABLE IF NOT EXISTS almacenes (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      nombre TEXT NOT NULL,
-      ubicacion TEXT,
-      ciudad TEXT,
-      capacidad INTEGER,
-      responsable TEXT,
-      telefono TEXT,
-      tipo TEXT,
-      activo INTEGER DEFAULT 1,
-      created_at TEXT NOT NULL
-    );
-  `);
-});
-
     CREATE TABLE IF NOT EXISTS vencli (
       cli_llave VARCHR(15) PRIMARY KEY,
       cli_nombre VARCHR(100),
