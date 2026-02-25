@@ -7,3 +7,9 @@ body {
   font-size: 22px;
   
 }
+
+/* Listas con scroll para que no crezcan infinito */
+.list-group {
+  max-height: 260px;
+  overflow: auto;
+}
