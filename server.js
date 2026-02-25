@@ -1,16 +1,16 @@
-const express = require("express");
-const sqlite3 = require("sqlite3").verbose();
+const express = require('express');
+const sqlite3 = require('sqlite3').verbose();
 
 const app = express();
 const PORT = 3000;
-const path = require("path");
+const path = require('path');
 
 // Middleware
 app.use(express.json());
 app.use(express.static(path.join(__dirname))); // sirve index.html, usuario.html, etc
 
 // DB (se crea si no existe)
-const db = new sqlite3.Database("./app.db");
+const db = new sqlite3.Database('./app.db');
 
 // Crear tabla si no existe
 db.serialize(() => {
@@ -247,72 +247,138 @@ db.serialize(() => {
     );
   
   `);
-})
+});
 
 // POST: crear usuario
-app.post("/api/users", (req, res) => {
-  const name = (req.body?.name || "").trim();
-  if (!name) return res.status(400).json({ error: "name is required" });
+app.post('/api/users', (req, res) => {
+  const name = (req.body?.name || '').trim();
+  if (!name) return res.status(400).json({ error: 'name is required' });
 
   const createdAt = new Date().toISOString();
   db.run(
-    "INSERT INTO users (name, created_at) VALUES (?, ?)",
+    'INSERT INTO users (name, created_at) VALUES (?, ?)',
     [name, createdAt],
     function (err) {
-      if (err) return res.status(500).json({ error: "DB error", details: err.message });
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
       res.status(201).json({ id: this.lastID, name, created_at: createdAt });
-    }
+    },
   );
-})
+});
 
 // GET: listar usuarios
-app.get("/api/users", (req, res) => {
-  db.all("SELECT id, name, created_at FROM users ORDER BY id DESC", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/users', (req, res) => {
+  db.all(
+    'SELECT id, name, created_at FROM users ORDER BY id DESC',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
 
 // GET: listar clientes
-app.get("/api/vencli", (req, res) => {
-  db.all("SELECT cli_llave, cli_nombre, cli_calle, cli_colonia, cli_cp, cli_pais, cli_rfc FROM vencli", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/vencli', (req, res) => {
+  db.all(
+    'SELECT cli_llave, cli_nombre, cli_calle, cli_colonia, cli_cp, cli_pais, cli_rfc FROM vencli',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
 
 // GET: listar edificios
-app.get("/api/venedif", (req, res) => {
-  db.all("SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/venedif', (req, res) => {
+  db.all(
+    'SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
 
 // GET: listar tanques
-app.get("/api/ventanq", (req, res) => {
-  db.all("SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/ventanq', (req, res) => {
+  db.all(
+    'SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
 
 // GET: listar deptos
-app.get("/api/vendepto", (req, res) => {
-  db.all("SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/vendepto', (req, res) => {
+  db.all(
+    'SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
 
 // GET: listar auxiliar deptos
-app.get("/api/vendeptoaux", (req, res) => {
-  db.all("SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux", [], (err, rows) => {
-    if (err) return res.status(500).json({ error: "DB error", details: err.message });
-    res.json(rows);
-  });
-})
+app.get('/api/vendeptoaux', (req, res) => {
+  db.all(
+    'SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux',
+    [],
+    (err, rows) => {
+      if (err)
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      res.json(rows);
+    },
+  );
+});
+
+// GET: contar departamentos por cliente
+app.get('/api/clientes/:cli/departamentos/count', (req, res) => {
+  const { cli } = req.params;
+
+  db.get(
+    `SELECT dep_cli AS cliente, COUNT(*) AS total_departamentos
+     FROM vendepto
+     WHERE dep_cli = ?
+     GROUP BY dep_cli`,
+    [cli],
+    (err, row) => {
+      if (err) {
+        return res
+          .status(500)
+          .json({ error: 'DB error', details: err.message });
+      }
+      res.json(row ?? { cliente: cli, total_departamentos: 0 });
+    },
+  );
+});
 
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
-})
+});

@@ -1,185 +1,214 @@
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener('DOMContentLoaded', () => {
   // ===== Contador (de 2 en 2) =====
   let count = 0;
 
-  const boton = document.getElementById("botton_prueba");
-  const contador = document.getElementById("contador");
+  const boton = document.getElementById('botton_prueba');
+  const contador = document.getElementById('contador');
 
   if (boton && contador) {
-    boton.addEventListener("click", () => {
+    boton.addEventListener('click', () => {
       count += 2;
       contador.textContent = count;
     });
   }
 
   // ===== Crear usuario (index.html) =====
-  const createUserBtn = document.getElementById("createUserBtn");
+  const createUserBtn = document.getElementById('createUserBtn');
   if (createUserBtn) {
-    createUserBtn.addEventListener("click", async () => {
-      const input = document.getElementById("nameInput");
-      const name = (input?.value || "").trim();
+    createUserBtn.addEventListener('click', async () => {
+      const input = document.getElementById('nameInput');
+      const name = (input?.value || '').trim();
 
-      if (!name) return alert("Escribe un nombre");
+      if (!name) return alert('Escribe un nombre');
 
-      const res = await fetch("/api/users", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
+      const res = await fetch('/api/users', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name }),
       });
 
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
-        return alert("Error: " + (err.error || res.status));
+        return alert('Error: ' + (err.error || res.status));
       }
 
-      input.value = "";
-      alert("Usuario guardado en SQL ✅");
+      input.value = '';
+      alert('Usuario guardado en SQL ✅');
     });
   }
 
   // ===== Cargar Usuarios (usuario.html) =====
-  const loadUsersBtn = document.getElementById("loadUsersBtn");
+  const loadUsersBtn = document.getElementById('loadUsersBtn');
   if (loadUsersBtn) {
-    loadUsersBtn.addEventListener("click", loadUsers);
+    loadUsersBtn.addEventListener('click', loadUsers);
   }
 
   async function loadUsers() {
-    const list = document.getElementById("UsersList");
+    const list = document.getElementById('UsersList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/users");
+    const res = await fetch('/api/users');
     const users = await res.json();
-  
+
     users.sort((a, b) => a.name.localeCompare(b.name));
-    list.innerHTML = "";
+    list.innerHTML = '';
     users.forEach((u) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `${u.id} - ${u.name} - (${u.created_at})`;
       list.appendChild(li);
     });
   }
 
   // ===== Cargar Clientes (cliente.html) =====
-  const loadCtesBtn = document.getElementById("loadCtesBtn");
+  const loadCtesBtn = document.getElementById('loadCtesBtn');
   if (loadCtesBtn) {
-    loadCtesBtn.addEventListener("click", loadCtes);
+    loadCtesBtn.addEventListener('click', loadCtes);
   }
 
   async function loadCtes() {
-    const list = document.getElementById("CtesList");
+    const list = document.getElementById('CtesList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/vencli");
+    const res = await fetch('/api/vencli');
     const ctes = await res.json();
-  
+
     ctes.sort((a, b) => a.cli_nombre.localeCompare(b.cli_nombre));
-    list.innerHTML = "";
+    list.innerHTML = '';
     ctes.forEach((i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `CLIENTE ${i.cli_llave} - ${i.cli_nombre} - ${i.cli_calle} - ${i.cli_colonia} - ${i.cli_cp} - ${i.cli_pais} - ${i.cli_rfc}`;
       list.appendChild(li);
     });
   }
 
   // ===== Cargar Edificios (varios.html) =====
-  const loadEdiBtn = document.getElementById("loadEdiBtn");
+  const loadEdiBtn = document.getElementById('loadEdiBtn');
   if (loadEdiBtn) {
-    loadEdiBtn.addEventListener("click", loadEdi);
+    loadEdiBtn.addEventListener('click', loadEdi);
   }
 
   async function loadEdi() {
-    const list = document.getElementById("EdiList");
+    const list = document.getElementById('EdiList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/venedif");
+    const res = await fetch('/api/venedif');
     const edi = await res.json();
-  
+
     // edi.sort((a, b) => a.edi_nombre.localeCompare(b.edi_nombre));
-    list.innerHTML = "";
+    list.innerHTML = '';
     edi.forEach((i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `CLIENTE ${i.edi_cli} EDIFICIO ${i.edi_llave} - ${i.edi_nombre} - ${i.edi_calle} - ${i.edi_colonia} - ${i.edi_pais} - ${i.edi_ruta}`;
       list.appendChild(li);
     });
   }
 
   // ===== Cargar Tanques (varios.html) =====
-  const loadTqeBtn = document.getElementById("loadTqeBtn");
+  const loadTqeBtn = document.getElementById('loadTqeBtn');
   if (loadTqeBtn) {
-    loadTqeBtn.addEventListener("click", loadTqe);
+    loadTqeBtn.addEventListener('click', loadTqe);
   }
 
   async function loadTqe() {
-    const list = document.getElementById("TqeList");
+    const list = document.getElementById('TqeList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/ventanq");
+    const res = await fetch('/api/ventanq');
     const tqe = await res.json();
-  
+
     tqe.sort((a, b) => a.tqe_medidor.localeCompare(b.tqe_medidor));
-    list.innerHTML = "";
+    list.innerHTML = '';
     tqe.forEach((i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `CLIENTE ${i.tqe_cli} EDIFICIO ${i.tqe_edi} MEDIDOR/TQE ${i.tqe_medidor} - ${i.tqe_capacidad} - ${i.tqe_f_alt} - ${i.tqe_f_mod}`;
       list.appendChild(li);
     });
   }
 
   // ===== Cargar Departamento (varios.html) =====
-  const loadDeptoBtn = document.getElementById("loadDeptoBtn");
+  const loadDeptoBtn = document.getElementById('loadDeptoBtn');
   if (loadDeptoBtn) {
-    loadDeptoBtn.addEventListener("click", loadDepto);
+    loadDeptoBtn.addEventListener('click', loadDepto);
   }
 
   async function loadDepto() {
-    const list = document.getElementById("DeptoList");
+    const list = document.getElementById('DeptoList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/vendepto");
+    const res = await fetch('/api/vendepto');
     const depto = await res.json();
-  
+
     depto.sort((a, b) => a.dep_depto.localeCompare(b.dep_depto));
-    list.innerHTML = "";
+    list.innerHTML = '';
     depto.forEach((i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `CLIENTE ${i.dep_cli} EDIFICIO ${i.dep_edi} MEDIDOR/TQE ${i.dep_tqe} DEPTO ${i.dep_depto} - ${i.dep_servicio} - ${i.dep_f_alt} - ${i.dep_f_mod}`;
       list.appendChild(li);
     });
   }
 
   // ===== Cargar Departamento Auxiliar (varios.html) =====
-  const loadDeptoAuxBtn = document.getElementById("loadDeptoAuxBtn");
+  const loadDeptoAuxBtn = document.getElementById('loadDeptoAuxBtn');
   if (loadDeptoAuxBtn) {
-    loadDeptoAuxBtn.addEventListener("click", loadDeptoAux);
+    loadDeptoAuxBtn.addEventListener('click', loadDeptoAux);
   }
 
   async function loadDeptoAux() {
-    const list = document.getElementById("DeptoAuxList");
+    const list = document.getElementById('DeptoAuxList');
     if (!list) return;
 
-    list.innerHTML = "<li>Cargando...</li>";
+    list.innerHTML = '<li>Cargando...</li>';
 
-    const res = await fetch("/api/vendeptoaux");
+    const res = await fetch('/api/vendeptoaux');
     const deptoaux = await res.json();
-  
+
     deptoaux.sort((a, b) => a.adep_depto.localeCompare(b.adep_depto));
-    list.innerHTML = "";
+    list.innerHTML = '';
     deptoaux.forEach((i) => {
-      const li = document.createElement("li");
+      const li = document.createElement('li');
       li.textContent = `CLIENTE ${i.adep_cli} EDIFICIO ${i.adep_edi} MEDIDOR/TQE ${i.adep_tqe} DEPTO ${i.adep_depto} MEDIDOR ${i.adep_depto_medidor} SERVICIO ${i.adep_servicio} - ${i.adep_f_alt} - ${i.adep_f_mod}`;
       list.appendChild(li);
     });
   }
 
+  // ===== Cargar Informacion del cliente C0000001 =====
 
+  document.getElementById('countDepsBtn')?.addEventListener('click', () => {
+    console.log('Click detectado, contando deps...');
+    loadDeptCount('C0000001');
+  });
+
+  async function loadDeptCount(cli = 'C0000001') {
+    const box = document.getElementById('depsCountBox');
+    if (!box) return;
+
+    box.textContent = 'Cargando...';
+
+    try {
+      const res = await fetch(
+        `/api/clientes/${encodeURIComponent(cli)}/departamentos/count`,
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(`HTTP ${res.status}: ${text}`);
+      }
+
+      const data = await res.json();
+      box.textContent = `Cliente ${data.cliente}: ${data.total_departamentos} departamentos`;
+    } catch (e) {
+      box.textContent = `Error: ${e.message}`;
+      console.error(e);
+    }
+  }
 });
