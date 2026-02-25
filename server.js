@@ -330,48 +330,64 @@ app.get('/api/vencli', async (req, res) => {
   }
 });
 
-// GET: listar edificios
-app.get('/api/venedif', async (req, res) => {
+// GET: listar edificios (opcional filtro por cliente ?cli=C0000001)
+app.get("/api/venedif", async (req, res) => {
   try {
-    const rows = await dbAll(
-      'SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif',
-    );
+    const cli = (req.query.cli || "").trim();
+
+    const sqlBase =
+      "SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif";
+    const sql = cli ? `${sqlBase} WHERE edi_cli = ?` : sqlBase;
+
+    const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, 'DB error', e.message);
+    fail(res, 500, "DB error", e.message);
   }
 });
 
-// GET: listar tanques
-app.get('/api/ventanq', async (req, res) => {
+// GET: listar tanques (opcional filtro por cliente ?cli=C0000001)
+app.get("/api/ventanq", async (req, res) => {
   try {
-    const rows = await dbAll(
-      'SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq',
-    );
+    const cli = (req.query.cli || "").trim();
+
+    const sqlBase =
+      "SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq";
+    const sql = cli ? `${sqlBase} WHERE tqe_cli = ?` : sqlBase;
+
+    const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, 'DB error', e.message);
+    fail(res, 500, "DB error", e.message);
   }
 });
 
-// GET: listar deptos
-app.get('/api/vendepto', async (req, res) => {
+// GET: listar deptos (opcional filtro por cliente ?cli=C0000001)
+app.get("/api/vendepto", async (req, res) => {
   try {
-    const rows = await dbAll(
-      'SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto',
-    );
+    const cli = (req.query.cli || "").trim();
+
+    const sqlBase =
+      "SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto";
+    const sql = cli ? `${sqlBase} WHERE dep_cli = ?` : sqlBase;
+
+    const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, 'DB error', e.message);
+    fail(res, 500, "DB error", e.message);
   }
 });
 
-// GET: listar deptos auxiliar
+// GET: listar deptos aux (opcional filtro por cliente ?cli=C0000001)
 app.get("/api/vendeptoaux", async (req, res) => {
   try {
-    const rows = await dbAll(
-      "SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux"
-    );
+    const cli = (req.query.cli || "").trim();
+
+    const sqlBase =
+      "SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux";
+    const sql = cli ? `${sqlBase} WHERE adep_cli = ?` : sqlBase;
+
+    const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
     fail(res, 500, "DB error", e.message);

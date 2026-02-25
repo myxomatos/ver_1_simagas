@@ -34,9 +34,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
       return data;
     } catch (e) {
-      // Mensaje más amigable para aborts
-      if (e.name === 'AbortError')
+      if (e.name === 'AbortError') {
         throw new Error('Timeout: el servidor tardó demasiado en responder.');
+      }
       throw e;
     } finally {
       clearTimeout(timer);
@@ -57,6 +57,22 @@ document.addEventListener('DOMContentLoaded', () => {
       const li = document.createElement('li');
       li.textContent = renderItem(item);
       list.appendChild(li);
+    }
+  }
+
+  function setBtnLoading(btn, isLoading, labelWhenIdle = 'Cargar') {
+    if (!btn) return;
+
+    if (isLoading) {
+      btn.disabled = true;
+      btn.dataset.originalHtml = btn.innerHTML;
+      btn.innerHTML = `
+      <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+      Cargando...
+    `;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = btn.dataset.originalHtml || labelWhenIdle;
     }
   }
 
@@ -116,7 +132,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const name = (input?.value || '').trim();
     if (!name) return alert('Escribe un nombre');
 
-    // Evita doble click
     if (createUserButton) createUserButton.disabled = true;
 
     try {
@@ -152,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   // =========================
-  // Clientes (cliente.html)
+  // Clientes (cliente.html) + Debug en varios.html
   // =========================
   const loadCtesButton = wireBtn('loadCtesBtn', () =>
     loadIntoList({
@@ -167,93 +182,20 @@ document.addEventListener('DOMContentLoaded', () => {
   );
 
   // =========================
-  // Edificios (varios.html)
+  // Dropdown de cliente (varios.html)
   // =========================
-  const loadEdiButton = wireBtn('loadEdiBtn', () =>
-    loadIntoList({
-      listId: 'EdiList',
-      url: '/api/venedif',
-      renderItem: (i) =>
-        `CLIENTE ${i.edi_cli} EDIFICIO ${i.edi_llave} - ${i.edi_nombre} - ${i.edi_calle} - ${i.edi_colonia} - ${i.edi_pais} - ${i.edi_ruta}`,
-      onStart: () => loadEdiButton && (loadEdiButton.disabled = true),
-      onEnd: () => loadEdiButton && (loadEdiButton.disabled = false),
-    }),
-  );
-
-  // =========================
-  // Tanques (varios.html)
-  // =========================
-  const loadTqeButton = wireBtn('loadTqeBtn', () =>
-    loadIntoList({
-      listId: 'TqeList',
-      url: '/api/ventanq',
-      sortFn: (a, b) =>
-        (a.tqe_medidor || '').localeCompare(b.tqe_medidor || ''),
-      renderItem: (i) =>
-        `CLIENTE ${i.tqe_cli} EDIFICIO ${i.tqe_edi} MEDIDOR/TQE ${i.tqe_medidor} - ${i.tqe_capacidad} - ${i.tqe_f_alt} - ${i.tqe_f_mod}`,
-      onStart: () => loadTqeButton && (loadTqeButton.disabled = true),
-      onEnd: () => loadTqeButton && (loadTqeButton.disabled = false),
-    }),
-  );
-
-  // =========================
-  // Departamentos (varios.html)
-  // =========================
-  const loadDeptoButton = wireBtn('loadDeptoBtn', () =>
-    loadIntoList({
-      listId: 'DeptoList',
-      url: '/api/vendepto',
-      sortFn: (a, b) => (a.dep_depto || '').localeCompare(b.dep_depto || ''),
-      renderItem: (i) =>
-        `CLIENTE ${i.dep_cli} EDIFICIO ${i.dep_edi} MEDIDOR/TQE ${i.dep_tqe} DEPTO ${i.dep_depto} - ${i.dep_servicio} - ${i.dep_f_alt} - ${i.dep_f_mod}`,
-      onStart: () => loadDeptoButton && (loadDeptoButton.disabled = true),
-      onEnd: () => loadDeptoButton && (loadDeptoButton.disabled = false),
-    }),
-  );
-
-  // =========================
-  // Departamentos Aux (varios.html)
-  // =========================
-  const loadDeptoAuxButton = wireBtn('loadDeptoAuxBtn', () =>
-    loadIntoList({
-      listId: 'DeptoAuxList',
-      url: '/api/vendeptoaux',
-      sortFn: (a, b) => (a.adep_depto || '').localeCompare(b.adep_depto || ''),
-      renderItem: (i) =>
-        `CLIENTE ${i.adep_cli} EDIFICIO ${i.adep_edi} MEDIDOR/TQE ${i.adep_tqe} DEPTO ${i.adep_depto} MEDIDOR ${i.adep_depto_medidor} SERVICIO ${i.adep_servicio} - ${i.adep_f_alt} - ${i.adep_f_mod}`,
-      onStart: () => loadDeptoAuxButton && (loadDeptoAuxButton.disabled = true),
-      onEnd: () => loadDeptoAuxButton && (loadDeptoAuxButton.disabled = false),
-    }),
-  );
-
-  // =========================
-  // Contar departamentos por cliente
-  // =========================
-  const countDepsButton = wireBtn('countDepsBtn', originalCountHandler);
-
-  async function loadDeptCount(cli = 'C0000001') {
-    const box = document.getElementById('depsCountBox');
-    if (!box) return;
-
-    box.textContent = 'Cargando...';
-    if (countDepsButton) countDepsButton.disabled = true;
-
-    try {
-      const data = await fetchJSON(
-        `/api/clientes/${encodeURIComponent(cli)}/departamentos/count`,
-      );
-      box.textContent = `Cliente ${data.cliente}: ${data.total_departamentos} departamentos`;
-    } catch (e) {
-      box.textContent = `Error: ${e.message}`;
-      console.error(e);
-    } finally {
-      if (countDepsButton) countDepsButton.disabled = false;
-    }
-  }
-
   function getSelectedClient() {
     const sel = document.getElementById('cliSelect');
     return (sel?.value || '').trim();
+  }
+
+  function requireClientSelected() {
+    const cli = getSelectedClient();
+    if (!cli) {
+      alert('Selecciona un cliente primero.');
+      return null;
+    }
+    return cli;
   }
 
   async function loadClientsIntoDropdown() {
@@ -264,10 +206,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     try {
       const clients = await fetchJSON('/api/vencli');
-      // clients puede venir como array (o data si ok:true)
       const list = Array.isArray(clients) ? clients : [];
 
-      // Ordena por nombre
       list.sort((a, b) =>
         (a.cli_nombre || '').localeCompare(b.cli_nombre || ''),
       );
@@ -292,24 +232,193 @@ document.addEventListener('DOMContentLoaded', () => {
     if (out) out.textContent = cli || 'Ninguno';
   });
 
-  // Botón refrescar
+  // Botón refrescar dropdown
   document
     .getElementById('refreshClientsBtn')
     ?.addEventListener('click', () => {
       loadClientsIntoDropdown();
     });
 
-  // Al cargar la página, llena el dropdown
+  // Al cargar la página, llena el dropdown (solo si existe el select)
   loadClientsIntoDropdown();
 
-  // Ajuste: contar usando el cliente seleccionado
-  function originalCountHandler() {
-    const cli = getSelectedClient();
-    if (!cli) return alert('Selecciona un cliente primero.');
-    loadDeptCount(cli);
-  }
+  // =========================
+  // Edificios (varios.html) - TODO
+  // =========================
+  const loadEdiButton = wireBtn('loadEdiBtn', () =>
+    loadIntoList({
+      listId: 'EdiList',
+      url: '/api/venedif',
+      renderItem: (i) =>
+        `CLIENTE ${i.edi_cli} EDIFICIO ${i.edi_llave} - ${i.edi_nombre} - ${i.edi_calle} - ${i.edi_colonia} - ${i.edi_pais} - ${i.edi_ruta}`,
+      onStart: () => setBtnLoading(loadEdiButton, true),
+      onEnd: () => setBtnLoading(loadEdiButton, false),
+    }),
+  );
 
-  // Si ya tenías wireBtn("countDepsBtn", ...) déjalo,
-  // pero reemplázalo por esto:
-  wireBtn('countDepsBtn', originalCountHandler);
+  // Edificios (varios.html) - POR CLIENTE
+  const loadEdiByCliButton = wireBtn('loadEdiByCliBtn', () => {
+    const cli = requireClientSelected();
+    if (!cli) return;
+
+    loadIntoList({
+      listId: 'EdiList',
+      url: `/api/venedif?cli=${encodeURIComponent(cli)}`,
+      renderItem: (i) =>
+        `CLIENTE ${i.edi_cli} EDIFICIO ${i.edi_llave} - ${i.edi_nombre} - ${i.edi_calle} - ${i.edi_colonia} - ${i.edi_pais} - ${i.edi_ruta}`,
+      onStart: () => setBtnLoading(loadEdiByCliButton, true),
+      onEnd: () => setBtnLoading(loadEdiByCliButton, false),
+    });
+  });
+
+  // =========================
+  // Tanques (varios.html) - TODO
+  // =========================
+  const loadTqeButton = wireBtn('loadTqeBtn', () =>
+    loadIntoList({
+      listId: 'TqeList',
+      url: '/api/ventanq',
+      sortFn: (a, b) =>
+        (a.tqe_medidor || '').localeCompare(b.tqe_medidor || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.tqe_cli} EDIFICIO ${i.tqe_edi} MEDIDOR/TQE ${i.tqe_medidor} - ${i.tqe_capacidad} - ${i.tqe_f_alt} - ${i.tqe_f_mod}`,
+      onStart: () => setBtnLoading(loadTqeButton, true),
+      onEnd: () => setBtnLoading(loadTqeButton, false),
+    }),
+  );
+
+  // Tanques (varios.html) - POR CLIENTE
+  const loadTqeByCliButton = wireBtn('loadTqeByCliBtn', () => {
+    const cli = requireClientSelected();
+    if (!cli) return;
+
+    loadIntoList({
+      listId: 'TqeList',
+      url: `/api/ventanq?cli=${encodeURIComponent(cli)}`,
+      sortFn: (a, b) =>
+        (a.tqe_medidor || '').localeCompare(b.tqe_medidor || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.tqe_cli} EDIFICIO ${i.tqe_edi} MEDIDOR/TQE ${i.tqe_medidor} - ${i.tqe_capacidad} - ${i.tqe_f_alt} - ${i.tqe_f_mod}`,
+      onStart: () => setBtnLoading(loadTqeByCliButton, true),
+      onEnd: () => setBtnLoading(loadTqeByCliButton, false),
+    });
+  });
+
+  // =========================
+  // Departamentos (varios.html) - TODO
+  // =========================
+  const loadDeptoButton = wireBtn('loadDeptoBtn', () =>
+    loadIntoList({
+      listId: 'DeptoList',
+      url: '/api/vendepto',
+      sortFn: (a, b) => (a.dep_depto || '').localeCompare(b.dep_depto || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.dep_cli} EDIFICIO ${i.dep_edi} MEDIDOR/TQE ${i.dep_tqe} DEPTO ${i.dep_depto} - ${i.dep_servicio} - ${i.dep_f_alt} - ${i.dep_f_mod}`,
+      onStart: () => setBtnLoading(loadDeptoButton, true),
+      onEnd: () => setBtnLoading(loadDeptoButton, false),
+    }),
+  );
+
+  // Departamentos (varios.html) - POR CLIENTE
+  const loadDeptoByCliButton = wireBtn('loadDeptoByCliBtn', () => {
+    const cli = requireClientSelected();
+    if (!cli) return;
+
+    loadIntoList({
+      listId: 'DeptoList',
+      url: `/api/vendepto?cli=${encodeURIComponent(cli)}`,
+      sortFn: (a, b) => (a.dep_depto || '').localeCompare(b.dep_depto || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.dep_cli} EDIFICIO ${i.dep_edi} MEDIDOR/TQE ${i.dep_tqe} DEPTO ${i.dep_depto} - ${i.dep_servicio} - ${i.dep_f_alt} - ${i.dep_f_mod}`,
+      onStart: () => setBtnLoading(loadDeptoByCliButton, true),
+      onEnd: () => setBtnLoading(loadDeptoByCliButton, false),
+    });
+  });
+
+  // =========================
+  // Departamentos Aux (varios.html) - TODO
+  // =========================
+  const loadDeptoAuxButton = wireBtn('loadDeptoAuxBtn', () =>
+    loadIntoList({
+      listId: 'DeptoAuxList',
+      url: '/api/vendeptoaux',
+      sortFn: (a, b) => (a.adep_depto || '').localeCompare(b.adep_depto || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.adep_cli} EDIFICIO ${i.adep_edi} MEDIDOR/TQE ${i.adep_tqe} DEPTO ${i.adep_depto} MEDIDOR ${i.adep_depto_medidor} SERVICIO ${i.adep_servicio} - ${i.adep_f_alt} - ${i.adep_f_mod}`,
+      onStart: () => setBtnLoading(loadDeptoAuxButton, true),
+      onEnd: () => setBtnLoading(loadDeptoAuxButton, false),
+    }),
+  );
+
+  // Departamentos Aux (varios.html) - POR CLIENTE
+  const loadDeptoAuxByCliButton = wireBtn('loadDeptoAuxByCliBtn', () => {
+    const cli = requireClientSelected();
+    if (!cli) return;
+
+    loadIntoList({
+      listId: 'DeptoAuxList',
+      url: `/api/vendeptoaux?cli=${encodeURIComponent(cli)}`,
+      sortFn: (a, b) => (a.adep_depto || '').localeCompare(b.adep_depto || ''),
+      renderItem: (i) =>
+        `CLIENTE ${i.adep_cli} EDIFICIO ${i.adep_edi} MEDIDOR/TQE ${i.adep_tqe} DEPTO ${i.adep_depto} MEDIDOR ${i.adep_depto_medidor} SERVICIO ${i.adep_servicio} - ${i.adep_f_alt} - ${i.adep_f_mod}`,
+      onStart: () => setBtnLoading(loadDeptoAuxByCliButton, true),
+      onEnd: () => setBtnLoading(loadDeptoAuxByCliButton, false),
+    });
+  });
+
+  wireBtn('resetVariosBtn', () => {
+    // Limpia listas
+    const listIds = [
+      'EdiList',
+      'TqeList',
+      'DeptoList',
+      'DeptoAuxList',
+      'CtesList',
+    ];
+    for (const id of listIds) {
+      const el = document.getElementById(id);
+      if (el) el.innerHTML = '';
+    }
+
+    // Resetea contador KPI
+    const depsBox = document.getElementById('depsCountBox');
+    if (depsBox)
+      depsBox.textContent = 'Selecciona un cliente y ejecuta una acción.';
+
+    // Resetea selector cliente (sin borrar opciones)
+    const sel = document.getElementById('cliSelect');
+    if (sel) sel.value = '';
+
+    const selected = document.getElementById('selectedClientValue');
+    if (selected) selected.textContent = 'Ninguno';
+  });
+
+  // =========================
+  // Contar departamentos por cliente (dropdown)
+  // =========================
+  const countDepsButton = wireBtn('countDepsBtn', () => {
+    const cli = requireClientSelected();
+    if (!cli) return;
+    loadDeptCount(cli);
+  });
+
+  async function loadDeptCount(cli = 'C0000001') {
+    const box = document.getElementById('depsCountBox');
+    if (!box) return;
+
+    box.textContent = 'Cargando...';
+    if (countDepsButton) countDepsButton.disabled = true;
+
+    try {
+      const data = await fetchJSON(
+        `/api/clientes/${encodeURIComponent(cli)}/departamentos/count`,
+      );
+      box.textContent = `Cliente ${data.cliente}: ${data.total_departamentos} departamentos`;
+    } catch (e) {
+      box.textContent = `Error: ${e.message}`;
+      console.error(e);
+    } finally {
+      if (countDepsButton) countDepsButton.disabled = false;
+    }
+  }
 });
