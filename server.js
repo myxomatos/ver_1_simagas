@@ -1,19 +1,48 @@
 const express = require('express');
 const sqlite3 = require('sqlite3').verbose();
+const path = require('path');
 
 const app = express();
 const PORT = 3000;
-const path = require('path');
 
 // Middleware
 app.use(express.json());
-app.use(express.static(path.join(__dirname))); // sirve index.html, usuario.html, etc
+app.use(express.static(path.join(__dirname))); // sirve index.html, varios.html, main.js, etc.
 
-// DB (se crea si no existe)
+// DB
 const db = new sqlite3.Database('./app.db');
 
-// Crear tabla si no existe
+// Helpers Promises (mejores prácticas)
+const dbRun = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.run(sql, params, function (err) {
+      if (err) return reject(err);
+      resolve({ lastID: this.lastID, changes: this.changes });
+    });
+  });
+
+const dbGet = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) return reject(err);
+      resolve(row);
+    });
+  });
+
+const dbAll = (sql, params = []) =>
+  new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) return reject(err);
+      resolve(rows);
+    });
+  });
+
+// Inicialización DB
 db.serialize(() => {
+  // MUY IMPORTANTE en SQLite
+  db.exec(`PRAGMA foreign_keys = ON;`);
+
+  // Nota: SQLite tolera tipos, pero corregimos VARCHR -> TEXT por claridad
   db.exec(`
     CREATE TABLE IF NOT EXISTS users (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -245,138 +274,128 @@ db.serialize(() => {
       vcat_tipo VARCHR(1),
       vcat_folio VARCHR(15)
     );
-  
+  `);
+
+  // Índices útiles (para tus GETs y counts)
+  db.exec(`
+    CREATE INDEX IF NOT EXISTS idx_vendepto_cli ON vendepto(dep_cli);
+    CREATE INDEX IF NOT EXISTS idx_vendepto_cli_edi ON vendepto(dep_cli, dep_edi);
   `);
 });
 
-// POST: crear usuario
-app.post('/api/users', (req, res) => {
-  const name = (req.body?.name || '').trim();
-  if (!name) return res.status(400).json({ error: 'name is required' });
+// Helper de respuesta
+const ok = (res, data) => res.json({ ok: true, data });
+const fail = (res, status, error, details) =>
+  res.status(status).json({ ok: false, error, details });
 
-  const createdAt = new Date().toISOString();
-  db.run(
-    'INSERT INTO users (name, created_at) VALUES (?, ?)',
-    [name, createdAt],
-    function (err) {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.status(201).json({ id: this.lastID, name, created_at: createdAt });
-    },
-  );
+// POST: crear usuario
+app.post('/api/users', async (req, res) => {
+  try {
+    const name = (req.body?.name || '').trim();
+    if (!name) return fail(res, 400, 'name is required');
+
+    const createdAt = new Date().toISOString();
+    const r = await dbRun(
+      'INSERT INTO users (name, created_at) VALUES (?, ?)',
+      [name, createdAt],
+    );
+
+    ok(res.status(201), { id: r.lastID, name, created_at: createdAt });
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 // GET: listar usuarios
-app.get('/api/users', (req, res) => {
-  db.all(
-    'SELECT id, name, created_at FROM users ORDER BY id DESC',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+app.get('/api/users', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT id, name, created_at FROM users ORDER BY id DESC',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 // GET: listar clientes
-app.get('/api/vencli', (req, res) => {
-  db.all(
-    'SELECT cli_llave, cli_nombre, cli_calle, cli_colonia, cli_cp, cli_pais, cli_rfc FROM vencli',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+app.get('/api/vencli', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT cli_llave, cli_nombre, cli_calle, cli_colonia, cli_cp, cli_pais, cli_rfc FROM vencli',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 // GET: listar edificios
-app.get('/api/venedif', (req, res) => {
-  db.all(
-    'SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+app.get('/api/venedif', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 // GET: listar tanques
-app.get('/api/ventanq', (req, res) => {
-  db.all(
-    'SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+app.get('/api/ventanq', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 // GET: listar deptos
-app.get('/api/vendepto', (req, res) => {
-  db.all(
-    'SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+app.get('/api/vendepto', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
-// GET: listar auxiliar deptos
-app.get('/api/vendeptoaux', (req, res) => {
-  db.all(
-    'SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux',
-    [],
-    (err, rows) => {
-      if (err)
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      res.json(rows);
-    },
-  );
+// GET: listar deptos auxiliar
+app.get("/api/vendeptoaux", async (req, res) => {
+  try {
+    const rows = await dbAll(
+      "SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux"
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, "DB error", e.message);
+  }
 });
 
 // GET: contar departamentos por cliente
-app.get('/api/clientes/:cli/departamentos/count', (req, res) => {
-  const { cli } = req.params;
+app.get('/api/clientes/:cli/departamentos/count', async (req, res) => {
+  try {
+    const cli = (req.params.cli || '').trim();
+    if (!cli) return fail(res, 400, 'cli param is required');
 
-  db.get(
-    `SELECT dep_cli AS cliente, COUNT(*) AS total_departamentos
-     FROM vendepto
-     WHERE dep_cli = ?
-     GROUP BY dep_cli`,
-    [cli],
-    (err, row) => {
-      if (err) {
-        return res
-          .status(500)
-          .json({ error: 'DB error', details: err.message });
-      }
-      res.json(row ?? { cliente: cli, total_departamentos: 0 });
-    },
-  );
+    const row = await dbGet(
+      `SELECT dep_cli AS cliente, COUNT(*) AS total_departamentos
+       FROM vendepto
+       WHERE dep_cli = ?
+       GROUP BY dep_cli`,
+      [cli],
+    );
+
+    ok(res, row ?? { cliente: cli, total_departamentos: 0 });
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
 });
 
 app.listen(PORT, () => {
