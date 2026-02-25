@@ -281,6 +281,38 @@ app.get("/api/vencli", (req, res) => {
   });
 })
 
+// GET: listar edificios
+app.get("/api/venedif", (req, res) => {
+  db.all("SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    res.json(rows);
+  });
+})
+
+// GET: listar tanques
+app.get("/api/ventanq", (req, res) => {
+  db.all("SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    res.json(rows);
+  });
+})
+
+// GET: listar deptos
+app.get("/api/vendepto", (req, res) => {
+  db.all("SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    res.json(rows);
+  });
+})
+
+// GET: listar auxiliar deptos
+app.get("/api/vendeptoaux", (req, res) => {
+  db.all("SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux", [], (err, rows) => {
+    if (err) return res.status(500).json({ error: "DB error", details: err.message });
+    res.json(rows);
+  });
+})
+
 app.listen(PORT, () => {
   console.log(`Server running on http://localhost:${PORT}`);
 })
