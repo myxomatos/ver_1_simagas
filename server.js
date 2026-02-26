@@ -306,18 +306,6 @@ app.post('/api/users', async (req, res) => {
   }
 });
 
-// GET: listar usuarios
-app.get('/api/users', async (req, res) => {
-  try {
-    const rows = await dbAll(
-      'SELECT id, name, created_at FROM users ORDER BY id DESC',
-    );
-    ok(res, rows);
-  } catch (e) {
-    fail(res, 500, 'DB error', e.message);
-  }
-});
-
 // GET: listar clientes
 app.get('/api/vencli', async (req, res) => {
   try {
@@ -330,67 +318,256 @@ app.get('/api/vencli', async (req, res) => {
   }
 });
 
-// GET: listar edificios (opcional filtro por cliente ?cli=C0000001)
-app.get("/api/venedif", async (req, res) => {
+// GET: obtener cliente por llave
+app.get('/api/vencli/:cli_llave', async (req, res) => {
   try {
-    const cli = (req.query.cli || "").trim();
+    const cli_llave = (req.params.cli_llave || '').trim();
+    if (!cli_llave) return fail(res, 400, 'cli_llave param is required');
+
+    const row = await dbGet(`SELECT * FROM vencli WHERE cli_llave = ?`, [
+      cli_llave,
+    ]);
+
+    if (!row) return fail(res, 404, 'Client not found', cli_llave);
+    ok(res, row);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
+});
+
+// POST: Crear cliente
+
+app.post('/api/vencli', async (req, res) => {
+  try {
+    const c = req.body;
+
+    if (c.cli_saldo > 0) {
+      return fail(res, 400, 'cli_saldo is required');
+    }
+
+    await dbRun(
+      `INSERT INTO vencli (
+        cli_llave, cli_nombre, cli_abrev, cli_tipo_adm,
+        cli_calle, cli_n_ext, cli_n_int, cli_colonia,
+        cli_municipio, cli_ciudad, cli_estado, cli_cp, cli_pais,
+        cli_ruta, cli_rfc, cli_curp, cli_mail,
+        cli_telefono, cli_celular, cli_contacto,
+        cli_lista_pre, cli_plazo, cli_limite, cli_saldo,
+        cli_adic_1, cli_adic_2, cli_adic_3, cli_adic_4, cli_adic_5,
+        cli_cta_pago, cli_dir_envio, cli_f_alt, cli_f_mod
+      ) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)`,
+      [
+        c.cli_llave,
+        c.cli_nombre,
+        c.cli_abrev,
+        c.cli_tipo_adm,
+        c.cli_calle,
+        c.cli_n_ext,
+        c.cli_n_int,
+        c.cli_colonia,
+        c.cli_municipio,
+        c.cli_ciudad,
+        c.cli_estado,
+        c.cli_cp,
+        c.cli_pais,
+        c.cli_ruta,
+        c.cli_rfc,
+        c.cli_curp,
+        c.cli_mail,
+        c.cli_telefono,
+        c.cli_celular,
+        c.cli_contacto,
+        c.cli_lista_pre,
+        c.cli_plazo,
+        c.cli_limite,
+        0,
+        c.cli_adic_1,
+        c.cli_adic_2,
+        c.cli_adic_3,
+        c.cli_adic_4,
+        c.cli_adic_5,
+        c.cli_cta_pago,
+        c.cli_dir_envio,
+        new Date().toISOString(),
+        new Date().toISOString(),
+      ],
+    );
+
+    res.status(201).json({ ok: true, message: 'Cliente creado' });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: e.message });
+  }
+});
+
+// PUT: actualizar cliente (parcial o total)
+// RECHAZA si intentan modificar: cli_llave (PK) o cli_saldo (read-only)
+app.put('/api/vencli/:cli_llave', async (req, res) => {
+  try {
+    const cli_llave = (req.params.cli_llave || '').trim();
+    if (!cli_llave) return fail(res, 400, 'cli_llave param is required');
+
+    const body = req.body && typeof req.body === 'object' ? req.body : {};
+
+    // Bloqueo explícito (rechazar, no ignorar)
+    if ('cli_llave' in body) return fail(res, 400, 'cli_llave is immutable');
+    if ('cli_saldo' in body) return fail(res, 400, 'cli_saldo is read-only');
+
+    // Lista blanca de campos EDITABLES
+    const allowed = new Set([
+      'cli_nombre',
+      'cli_abrev',
+      'cli_tipo_adm',
+      'cli_calle',
+      'cli_n_ext',
+      'cli_n_int',
+      'cli_colonia',
+      'cli_municipio',
+      'cli_ciudad',
+      'cli_estado',
+      'cli_cp',
+      'cli_pais',
+      'cli_ruta',
+      'cli_rfc',
+      'cli_curp',
+      'cli_mail',
+      'cli_telefono',
+      'cli_celular',
+      'cli_contacto',
+      'cli_lista_pre',
+      'cli_plazo',
+      'cli_limite',
+      'cli_adic_1',
+      'cli_adic_2',
+      'cli_adic_3',
+      'cli_adic_4',
+      'cli_adic_5',
+      'cli_cta_pago',
+      'cli_dir_envio',
+      // Recomendación: normalmente NO dejas que el cliente toque fechas,
+      // pero si quieres permitirlo, déjalas:
+      // "cli_f_alt",
+      // "cli_f_mod"
+    ]);
+
+    // Solo tomamos campos permitidos que vengan en el body
+    const entries = Object.entries(body).filter(([k]) => allowed.has(k));
+
+    if (entries.length === 0) {
+      return fail(
+        res,
+        400,
+        'No valid fields to update',
+        'Send at least one allowed field in body (cli_llave and cli_saldo cannot be updated)',
+      );
+    }
+
+    // Verificar que el cliente exista
+    const exists = await dbGet(
+      'SELECT cli_llave FROM vencli WHERE cli_llave = ?',
+      [cli_llave],
+    );
+    if (!exists) return fail(res, 404, 'Client not found', cli_llave);
+
+    const now = new Date().toISOString();
+
+    // Construir SET dinámico
+    const setParts = [];
+    const params = [];
+
+    for (const [key, value] of entries) {
+      setParts.push(`${key} = ?`);
+      params.push(value);
+    }
+
+    // Siempre actualizar fecha modificación
+    setParts.push('cli_f_mod = ?');
+    params.push(now);
+
+    // WHERE
+    params.push(cli_llave);
+
+    const sql = `UPDATE vencli SET ${setParts.join(', ')} WHERE cli_llave = ?`;
+    const r = await dbRun(sql, params);
+
+    ok(res, { cli_llave, updated: r.changes, cli_f_mod: now });
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
+});
+
+// GET: listar usuarios
+app.get('/api/users', async (req, res) => {
+  try {
+    const rows = await dbAll(
+      'SELECT id, name, created_at FROM users ORDER BY id DESC',
+    );
+    ok(res, rows);
+  } catch (e) {
+    fail(res, 500, 'DB error', e.message);
+  }
+});
+
+// GET: listar edificios (opcional filtro por cliente ?cli=C0000001)
+app.get('/api/venedif', async (req, res) => {
+  try {
+    const cli = (req.query.cli || '').trim();
 
     const sqlBase =
-      "SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif";
+      'SELECT edi_cli, edi_llave, edi_nombre, edi_calle, edi_colonia, edi_cp, edi_pais, edi_ruta FROM venedif';
     const sql = cli ? `${sqlBase} WHERE edi_cli = ?` : sqlBase;
 
     const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, "DB error", e.message);
+    fail(res, 500, 'DB error', e.message);
   }
 });
 
 // GET: listar tanques (opcional filtro por cliente ?cli=C0000001)
-app.get("/api/ventanq", async (req, res) => {
+app.get('/api/ventanq', async (req, res) => {
   try {
-    const cli = (req.query.cli || "").trim();
+    const cli = (req.query.cli || '').trim();
 
     const sqlBase =
-      "SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq";
+      'SELECT tqe_cli, tqe_edi, tqe_medidor, tqe_capacidad, tqe_f_alt, tqe_f_mod FROM ventanq';
     const sql = cli ? `${sqlBase} WHERE tqe_cli = ?` : sqlBase;
 
     const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, "DB error", e.message);
+    fail(res, 500, 'DB error', e.message);
   }
 });
 
 // GET: listar deptos (opcional filtro por cliente ?cli=C0000001)
-app.get("/api/vendepto", async (req, res) => {
+app.get('/api/vendepto', async (req, res) => {
   try {
-    const cli = (req.query.cli || "").trim();
+    const cli = (req.query.cli || '').trim();
 
     const sqlBase =
-      "SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto";
+      'SELECT dep_cli, dep_edi, dep_tqe, dep_depto, dep_servicio, dep_f_alt, dep_f_mod FROM vendepto';
     const sql = cli ? `${sqlBase} WHERE dep_cli = ?` : sqlBase;
 
     const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, "DB error", e.message);
+    fail(res, 500, 'DB error', e.message);
   }
 });
 
 // GET: listar deptos aux (opcional filtro por cliente ?cli=C0000001)
-app.get("/api/vendeptoaux", async (req, res) => {
+app.get('/api/vendeptoaux', async (req, res) => {
   try {
-    const cli = (req.query.cli || "").trim();
+    const cli = (req.query.cli || '').trim();
 
     const sqlBase =
-      "SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux";
+      'SELECT adep_cli, adep_edi, adep_tqe, adep_depto, adep_depto_medidor, adep_servicio, adep_f_alt, adep_f_mod FROM vendeptoaux';
     const sql = cli ? `${sqlBase} WHERE adep_cli = ?` : sqlBase;
 
     const rows = await dbAll(sql, cli ? [cli] : []);
     ok(res, rows);
   } catch (e) {
-    fail(res, 500, "DB error", e.message);
+    fail(res, 500, 'DB error', e.message);
   }
 });
 

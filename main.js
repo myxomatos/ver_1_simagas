@@ -421,4 +421,200 @@ document.addEventListener('DOMContentLoaded', () => {
       if (countDepsButton) countDepsButton.disabled = false;
     }
   }
+
+  // =========================
+  // clientes.html - helpers
+  // =========================
+  function formToObject(formEl) {
+    const fd = new FormData(formEl);
+    const obj = {};
+    for (const [k, v] of fd.entries()) {
+      if (k === 'advanced_json') continue;
+      const val = (v ?? '').toString().trim();
+      if (val === '') continue;
+
+      // Convertir números comunes
+      if (
+        ['cli_tipo_adm', 'cli_ruta', 'cli_lista_pre', 'cli_plazo'].includes(k)
+      ) {
+        obj[k] = Number(val);
+        continue;
+      }
+      if (['cli_limite', 'cli_saldo'].includes(k)) {
+        obj[k] = Number(val);
+        continue;
+      }
+
+      obj[k] = val;
+    }
+
+    const adv = (fd.get('advanced_json') || '').toString().trim();
+    if (adv) {
+      let advObj;
+      try {
+        advObj = JSON.parse(adv);
+      } catch {
+        throw new Error('JSON avanzado inválido');
+      }
+      Object.assign(obj, advObj);
+    }
+
+    return obj;
+  }
+
+  function pretty(obj) {
+    return `<pre class="mb-0">${JSON.stringify(obj, null, 2)}</pre>`;
+  }
+
+  // Limpiar lista clientes
+  wireBtn('clearCtesBtn', () => {
+    const ul = document.getElementById('CtesList');
+    if (ul) ul.innerHTML = '';
+  });
+
+  // =========================
+  // GET /api/vencli/:cli_llave (buscar)
+  // =========================
+  wireBtn('getCliBtn', async () => {
+    const key = (document.getElementById('getCliKey')?.value || '').trim();
+    const box = document.getElementById('getCliResult');
+    if (!box) return;
+
+    if (!key) {
+      box.className = 'alert alert-warning mb-0';
+      box.textContent = 'Escribe una llave (ej. C0000001).';
+      return;
+    }
+
+    box.className = 'alert alert-info mb-0';
+    box.textContent = 'Buscando...';
+
+    try {
+      const data = await fetchJSON(`/api/vencli/${encodeURIComponent(key)}`);
+      box.className = 'alert alert-success mb-0';
+      box.innerHTML = pretty(data);
+
+      // Autollenar form UPDATE
+      const upd = document.getElementById('updateCliForm');
+      if (upd) {
+        upd.querySelector('[name="cli_llave"]').value = data.cli_llave || key;
+        if (upd.querySelector('[name="cli_nombre"]'))
+          upd.querySelector('[name="cli_nombre"]').value =
+            data.cli_nombre || '';
+        if (upd.querySelector('[name="cli_cp"]'))
+          upd.querySelector('[name="cli_cp"]').value = data.cli_cp || '';
+        if (upd.querySelector('[name="cli_mail"]'))
+          upd.querySelector('[name="cli_mail"]').value = data.cli_mail || '';
+      }
+    } catch (e) {
+      box.className = 'alert alert-danger mb-0';
+      box.textContent = `Error: ${e.message}`;
+    }
+  });
+
+  // =========================
+  // POST /api/vencli (crear)
+  // =========================
+  document
+    .getElementById('resetCreateCliBtn')
+    ?.addEventListener('click', () => {
+      document.getElementById('createCliForm')?.reset();
+      const msg = document.getElementById('createCliMsg');
+      if (msg) msg.textContent = '—';
+    });
+
+  document
+    .getElementById('createCliForm')
+    ?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+
+      const msg = document.getElementById('createCliMsg');
+      const btn = document.getElementById('createCliBtn');
+      if (msg) {
+        msg.className = 'alert alert-info border mb-0';
+        msg.textContent = 'Creando...';
+      }
+      if (btn) btn.disabled = true;
+
+      try {
+        const body = formToObject(ev.target);
+        await fetchJSON('/api/vencli', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (msg) {
+          msg.className = 'alert alert-success border mb-0';
+          msg.textContent = 'Cliente creado ✅';
+        }
+
+        // refrescar lista si está visible
+        document.getElementById('loadCtesBtn')?.click();
+      } catch (e) {
+        if (msg) {
+          msg.className = 'alert alert-danger border mb-0';
+          msg.textContent = `Error: ${e.message}`;
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
+
+  // =========================
+  // PUT /api/vencli/:cli_llave (actualizar)
+  // =========================
+  document
+    .getElementById('resetUpdateCliBtn')
+    ?.addEventListener('click', () => {
+      document.getElementById('updateCliForm')?.reset();
+      const msg = document.getElementById('updateCliMsg');
+      if (msg) msg.textContent = '—';
+    });
+
+  document
+    .getElementById('updateCliForm')
+    ?.addEventListener('submit', async (ev) => {
+      ev.preventDefault();
+
+      const msg = document.getElementById('updateCliMsg');
+      const btn = document.getElementById('updateCliBtn');
+      if (msg) {
+        msg.className = 'alert alert-info border mb-0';
+        msg.textContent = 'Actualizando...';
+      }
+      if (btn) btn.disabled = true;
+
+      try {
+        const form = ev.target;
+        const key = (
+          form.querySelector('[name="cli_llave"]')?.value || ''
+        ).trim();
+        if (!key) throw new Error('La llave es obligatoria para actualizar.');
+
+        const body = formToObject(form);
+        delete body.cli_llave; // la llave va en la URL
+
+        await fetchJSON(`/api/vencli/${encodeURIComponent(key)}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+
+        if (msg) {
+          msg.className = 'alert alert-success border mb-0';
+          msg.textContent = 'Cliente actualizado ✅';
+        }
+
+        // refrescar lista si está visible
+        document.getElementById('loadCtesBtn')?.click();
+      } catch (e) {
+        if (msg) {
+          msg.className = 'alert alert-danger border mb-0';
+          msg.textContent = `Error: ${e.message}`;
+        }
+      } finally {
+        if (btn) btn.disabled = false;
+      }
+    });
 });
